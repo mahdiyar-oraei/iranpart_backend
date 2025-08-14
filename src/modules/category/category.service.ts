@@ -46,10 +46,8 @@ export class CategoryService {
   }
 
   async findAll(supplierId: string): Promise<Category[]> {
-    return this.categoryRepository.findTrees({
-      where: { supplierId },
-      order: { displayOrder: 'ASC' },
-    });
+    const allCategories = await this.categoryRepository.findTrees();
+    return this.filterCategoriesBySupplierId(allCategories, supplierId);
   }
 
   async findBySupplier(supplierId: string): Promise<Category[]> {
@@ -126,10 +124,8 @@ export class CategoryService {
   }
 
   async getCategoryTree(supplierId: string): Promise<Category[]> {
-    return this.categoryRepository.findTrees({
-      where: { supplierId, isActive: true },
-      order: { displayOrder: 'ASC' },
-    });
+    const allCategories = await this.categoryRepository.findTrees();
+    return this.filterCategoriesBySupplierId(allCategories, supplierId, true);
   }
 
   async updateDisplayOrder(id: string, displayOrder: number, userId: string): Promise<Category> {
@@ -172,5 +168,25 @@ export class CategoryService {
     }
 
     return this.categoryRepository.findAncestors(category);
+  }
+
+  private filterCategoriesBySupplierId(
+    categories: Category[], 
+    supplierId: string, 
+    activeOnly: boolean = false
+  ): Category[] {
+    return categories
+      .filter(category => {
+        const matchesSupplier = category.supplierId === supplierId;
+        const isActiveCheck = activeOnly ? category.isActive : true;
+        return matchesSupplier && isActiveCheck;
+      })
+      .map(category => ({
+        ...category,
+        children: category.children 
+          ? this.filterCategoriesBySupplierId(category.children, supplierId, activeOnly)
+          : []
+      }))
+      .sort((a, b) => a.displayOrder - b.displayOrder);
   }
 }
