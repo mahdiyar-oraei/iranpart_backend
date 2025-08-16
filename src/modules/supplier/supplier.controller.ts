@@ -34,8 +34,23 @@ export class SupplierController {
   async findAll(
     @Query('paymentType') paymentType?: PaymentType,
     @Query('search') search?: string,
+    @GetUser() user?: User,
   ) {
-    return this.supplierService.findAll({ paymentType, search });
+    return this.supplierService.findAll({ paymentType, search }, user);
+  }
+
+  @Get('buyers')
+  @ApiOperation({ summary: 'Get all available buyers for supplier management' })
+  @ApiQuery({ name: 'search', type: 'string', required: false })
+  @ApiQuery({ name: 'page', type: 'number', required: false })
+  @ApiQuery({ name: 'limit', type: 'number', required: false })
+  @ApiResponse({ status: 200, description: 'Buyers retrieved successfully' })
+  async getAllBuyers(
+    @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.supplierService.getAllBuyers({ search, page, limit });
   }
 
   @Get('me')
@@ -86,6 +101,13 @@ export class SupplierController {
   @ApiResponse({ status: 200, description: 'Customer groups retrieved successfully' })
   async getCustomerGroups(@Param('id') supplierId: string) {
     return this.supplierService.getCustomerGroups(supplierId);
+  }
+
+  @Get('customer-groups/:groupId/buyers')
+  @ApiOperation({ summary: 'Get buyers in a specific customer group' })
+  @ApiResponse({ status: 200, description: 'Group buyers retrieved successfully' })
+  async getCustomerGroupBuyers(@Param('groupId') groupId: string) {
+    return this.supplierService.getCustomerGroupBuyers(groupId);
   }
 
   @Patch('customer-groups/:groupId')

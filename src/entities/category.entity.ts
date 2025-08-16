@@ -15,7 +15,7 @@ import { Supplier } from './supplier.entity';
 import { ProductCategory } from './product-category.entity';
 
 @Entity('categories')
-@Tree('nested-set')
+@Tree('adjacency-list')
 export class Category {
   @PrimaryGeneratedColumn('uuid')
   id: string;

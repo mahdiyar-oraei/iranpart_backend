@@ -71,7 +71,7 @@ export class Buyer {
   })
   favoriteProducts: Product[];
 
-  @OneToMany(() => CustomerGroup, customerGroup => customerGroup.buyers)
+  @ManyToMany(() => CustomerGroup, customerGroup => customerGroup.buyers)
   customerGroups: CustomerGroup[];
 
   @OneToMany(() => SupplierRating, rating => rating.buyer)

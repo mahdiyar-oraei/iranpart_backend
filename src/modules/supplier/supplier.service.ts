@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Supplier, CustomerGroup, SupplierRating, User } from '../../entities';
+import { Supplier, CustomerGroup, SupplierRating, User, Buyer } from '../../entities';
 import { PaymentType } from '../../common/enums';
 import { UpdateSupplierDto, CreateCustomerGroupDto, UpdateCustomerGroupDto } from './dto';
 
@@ -14,9 +14,14 @@ export class SupplierService {
     private customerGroupRepository: Repository<CustomerGroup>,
     @InjectRepository(SupplierRating)
     private supplierRatingRepository: Repository<SupplierRating>,
+    @InjectRepository(Buyer)
+    private buyerRepository: Repository<Buyer>,
   ) {}
 
-  async findAll(filter?: { paymentType?: PaymentType; search?: string }): Promise<Supplier[]> {
+  async findAll(
+    filter?: { paymentType?: PaymentType; search?: string },
+    user?: User,
+  ): Promise<Supplier[]> {
     const queryBuilder = this.supplierRepository
       .createQueryBuilder('supplier')
       .leftJoinAndSelect('supplier.user', 'user')
@@ -28,6 +33,39 @@ export class SupplierService {
         'supplier.name LIKE :search OR supplier.description LIKE :search',
         { search: `%${filter.search}%` }
       );
+    }
+
+    // Handle payment type filtering
+    if (filter?.paymentType) {
+      if (filter.paymentType === PaymentType.CASH) {
+        // For CASH payment type, return all suppliers (no additional filtering)
+        // The query remains as is
+      } else if (filter.paymentType === PaymentType.CREDIT) {
+        // For CREDIT payment type, only return suppliers where the current buyer
+        // is in a customer group with payment type CREDIT
+        if (user) {
+          // First find the buyer ID for the current user
+          const buyer = await this.buyerRepository.findOne({
+            where: { userId: user.id },
+          });
+
+          if (buyer) {
+            queryBuilder
+              .leftJoin('supplier.customerGroups', 'customerGroups')
+              .leftJoin('customerGroups.buyers', 'buyers')
+              .andWhere('buyers.id = :buyerId', { buyerId: buyer.id })
+              .andWhere('customerGroups.paymentType = :paymentType', { 
+                paymentType: PaymentType.CREDIT 
+              });
+          } else {
+            // If buyer not found, return empty result
+            queryBuilder.andWhere('1 = 0');
+          }
+        } else {
+          // If no user is provided, return empty result for CREDIT filtering
+          queryBuilder.andWhere('1 = 0');
+        }
+      }
     }
 
     return queryBuilder.getMany();
@@ -167,8 +205,22 @@ export class SupplierService {
       throw new ForbiddenException('You can only manage your own customer groups');
     }
 
-    // Add buyer to group (this would require buyer validation)
-    return customerGroup;
+    const buyer = await this.buyerRepository.findOne({
+      where: { id: buyerId },
+    });
+
+    if (!buyer) {
+      throw new NotFoundException('Buyer not found');
+    }
+
+    // Check if buyer is already in the group
+    const isAlreadyInGroup = customerGroup.buyers.some(b => b.id === buyerId);
+    if (isAlreadyInGroup) {
+      throw new ForbiddenException('Buyer is already in this group');
+    }
+
+    customerGroup.buyers.push(buyer);
+    return this.customerGroupRepository.save(customerGroup);
   }
 
   async removeBuyerFromGroup(groupId: string, buyerId: string, userId: string): Promise<CustomerGroup> {
@@ -186,7 +238,61 @@ export class SupplierService {
     }
 
     // Remove buyer from group
-    return customerGroup;
+    customerGroup.buyers = customerGroup.buyers.filter(buyer => buyer.id !== buyerId);
+    return this.customerGroupRepository.save(customerGroup);
+  }
+
+  async getAllBuyers(filter?: { search?: string; page?: number; limit?: number }): Promise<{
+    buyers: Buyer[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const page = filter?.page || 1;
+    const limit = filter?.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const queryBuilder = this.buyerRepository
+      .createQueryBuilder('buyer')
+      .leftJoinAndSelect('buyer.user', 'user')
+      .where('buyer.isActive = :isActive', { isActive: true });
+
+    if (filter?.search) {
+      queryBuilder.andWhere(
+        '(buyer.name LIKE :search OR buyer.companyName LIKE :search OR buyer.email LIKE :search)',
+        { search: `%${filter.search}%` }
+      );
+    }
+
+    const [buyers, total] = await queryBuilder
+      .orderBy('buyer.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      buyers,
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+  }
+
+  async getCustomerGroupBuyers(groupId: string): Promise<Buyer[]> {
+    const customerGroup = await this.customerGroupRepository.findOne({
+      where: { id: groupId },
+      relations: ['buyers', 'buyers.user'],
+    });
+
+    if (!customerGroup) {
+      throw new NotFoundException('Customer group not found');
+    }
+
+    return customerGroup.buyers;
   }
 
   async getSupplierRatings(supplierId: string): Promise<SupplierRating[]> {
