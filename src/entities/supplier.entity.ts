@@ -41,6 +41,12 @@ export class Supplier {
   address: string;
 
   @Column({ nullable: true })
+  city: string;
+
+  @Column({ nullable: true })
+  province: string;
+
+  @Column({ nullable: true })
   website: string;
 
   @Column({ default: true })

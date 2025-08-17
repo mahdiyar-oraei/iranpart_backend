@@ -39,6 +39,12 @@ export class Buyer {
   @Column({ type: 'text', nullable: true })
   address: string;
 
+  @Column({ nullable: true })
+  city: string;
+
+  @Column({ nullable: true })
+  province: string;
+
   @Column({ default: true })
   isActive: boolean;
 

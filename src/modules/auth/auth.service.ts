@@ -63,7 +63,7 @@ export class AuthService {
   }
 
   async register(verifyOtpDto: VerifyOtpDto, role: UserRole): Promise<{ accessToken: string; user: any }> {
-    const { phone, code, name, email } = verifyOtpDto;
+    const { phone, code, name, email, city, province } = verifyOtpDto;
 
     // Verify OTP
     await this.otpService.verifyOtp(phone, code);
@@ -88,12 +88,18 @@ export class AuthService {
     if (role === UserRole.SUPPLIER) {
       const supplier = this.supplierRepository.create({
         name: name || 'Unnamed Supplier',
+        email,
+        city,
+        province,
         userId: savedUser.id,
       });
       await this.supplierRepository.save(supplier);
     } else if (role === UserRole.BUYER) {
       const buyer = this.buyerRepository.create({
         name: name || 'Unnamed Buyer',
+        email,
+        city,
+        province,
         userId: savedUser.id,
       });
       await this.buyerRepository.save(buyer);

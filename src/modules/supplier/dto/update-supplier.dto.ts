@@ -37,6 +37,16 @@ export class UpdateSupplierDto {
   @IsString()
   address?: string;
 
+  @ApiProperty({ example: 'Tehran', required: false })
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiProperty({ example: 'Tehran Province', required: false })
+  @IsOptional()
+  @IsString()
+  province?: string;
+
   @ApiProperty({ example: 'https://techsolutions.com', required: false })
   @IsOptional()
   @IsUrl()

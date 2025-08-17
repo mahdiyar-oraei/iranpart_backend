@@ -20,4 +20,14 @@ export class VerifyOtpDto {
   @IsOptional()
   @IsString()
   email?: string;
+
+  @ApiProperty({ example: 'Tehran', required: false })
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiProperty({ example: 'Tehran Province', required: false })
+  @IsOptional()
+  @IsString()
+  province?: string;
 }

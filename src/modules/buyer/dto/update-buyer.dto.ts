@@ -31,4 +31,14 @@ export class UpdateBuyerDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  @ApiProperty({ example: 'Tehran', required: false })
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiProperty({ example: 'Tehran Province', required: false })
+  @IsOptional()
+  @IsString()
+  province?: string;
 }
