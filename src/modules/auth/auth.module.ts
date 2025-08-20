@@ -6,6 +6,8 @@ import { ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { OtpService } from './otp.service';
+import { AdminSeedService } from './admin-seed.service';
+import { AdminCliService } from './admin-cli.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { User, OtpCode, Supplier, Buyer } from '../../entities';
 
@@ -24,7 +26,7 @@ import { User, OtpCode, Supplier, Buyer } from '../../entities';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, OtpService, JwtStrategy],
+  providers: [AuthService, OtpService, AdminSeedService, AdminCliService, JwtStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}

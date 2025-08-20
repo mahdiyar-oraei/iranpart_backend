@@ -12,7 +12,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { SupplierService } from './supplier.service';
-import { UpdateSupplierDto, CreateCustomerGroupDto, UpdateCustomerGroupDto } from './dto';
+import { UpdateSupplierDto, CreateCustomerGroupDto, UpdateCustomerGroupDto, AdminCreateSupplierDto } from './dto';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { GetUser } from '../../common/decorators/get-user.decorator';
@@ -25,6 +25,16 @@ import { User } from '../../entities';
 @ApiBearerAuth()
 export class SupplierController {
   constructor(private supplierService: SupplierService) {}
+
+  @Post('admin/register')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.PLATFORM_ADMIN)
+  @ApiOperation({ summary: 'Admin: Register a new supplier' })
+  @ApiResponse({ status: 201, description: 'Supplier registered successfully' })
+  @ApiResponse({ status: 409, description: 'User with this phone number already exists' })
+  async adminCreateSupplier(@Body() adminCreateSupplierDto: AdminCreateSupplierDto) {
+    return this.supplierService.adminCreateSupplier(adminCreateSupplierDto);
+  }
 
   @Get()
   @ApiOperation({ summary: 'Get all suppliers with optional filters' })

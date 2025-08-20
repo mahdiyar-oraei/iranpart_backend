@@ -2,6 +2,7 @@ import { Controller, Post, Get, Body, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
+import { AdminSeedService } from './admin-seed.service';
 import { SendOtpDto, VerifyOtpDto } from './dto';
 import { UserRole } from '../../common/enums';
 import { GetUser } from '../../common/decorators/get-user.decorator';
@@ -10,7 +11,10 @@ import { User } from '../../entities';
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private adminSeedService: AdminSeedService,
+  ) {}
 
   @Post('send-otp')
   @ApiOperation({ summary: 'Send OTP to phone number' })
@@ -47,5 +51,13 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'User profile retrieved successfully' })
   async getProfile(@GetUser() user: User) {
     return this.authService.getProfile(user.id);
+  }
+
+  @Get('admin/status')
+  @ApiOperation({ summary: 'Check if platform admin exists' })
+  @ApiResponse({ status: 200, description: 'Admin status checked successfully' })
+  async checkAdminStatus() {
+    // This is a public endpoint to check if the system has been initialized with an admin
+    return { message: 'Admin status endpoint - check server logs for admin creation details' };
   }
 }

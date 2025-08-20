@@ -1,9 +1,9 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Supplier, CustomerGroup, SupplierRating, User, Buyer } from '../../entities';
-import { PaymentType } from '../../common/enums';
-import { UpdateSupplierDto, CreateCustomerGroupDto, UpdateCustomerGroupDto } from './dto';
+import { PaymentType, UserRole } from '../../common/enums';
+import { UpdateSupplierDto, CreateCustomerGroupDto, UpdateCustomerGroupDto, AdminCreateSupplierDto } from './dto';
 
 @Injectable()
 export class SupplierService {
@@ -16,7 +16,51 @@ export class SupplierService {
     private supplierRatingRepository: Repository<SupplierRating>,
     @InjectRepository(Buyer)
     private buyerRepository: Repository<Buyer>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
   ) {}
+
+  async adminCreateSupplier(adminCreateSupplierDto: AdminCreateSupplierDto): Promise<Supplier> {
+    // Check if user with phone already exists
+    const existingUser = await this.userRepository.findOne({
+      where: { phone: adminCreateSupplierDto.phone },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('User with this phone number already exists');
+    }
+
+    // Create user first
+    const user = this.userRepository.create({
+      phone: adminCreateSupplierDto.phone,
+      email: adminCreateSupplierDto.userEmail,
+      role: UserRole.SUPPLIER,
+      isVerified: true, // Admin-created users are automatically verified
+      isActive: true,
+    });
+
+    const savedUser = await this.userRepository.save(user);
+
+    // Create supplier profile
+    const supplier = this.supplierRepository.create({
+      name: adminCreateSupplierDto.name,
+      logo: adminCreateSupplierDto.logo,
+      description: adminCreateSupplierDto.description,
+      phone: adminCreateSupplierDto.supplierPhone,
+      email: adminCreateSupplierDto.email,
+      zipCode: adminCreateSupplierDto.zipCode,
+      address: adminCreateSupplierDto.address,
+      city: adminCreateSupplierDto.city,
+      province: adminCreateSupplierDto.province,
+      website: adminCreateSupplierDto.website,
+      userId: savedUser.id,
+      isActive: true,
+    });
+
+    const savedSupplier = await this.supplierRepository.save(supplier);
+
+    return this.findOne(savedSupplier.id);
+  }
 
   async findAll(
     filter?: { paymentType?: PaymentType; search?: string },
