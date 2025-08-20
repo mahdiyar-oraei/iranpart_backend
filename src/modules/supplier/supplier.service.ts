@@ -21,7 +21,7 @@ export class SupplierService {
   async findAll(
     filter?: { paymentType?: PaymentType; search?: string },
     user?: User,
-  ): Promise<Supplier[]> {
+  ): Promise<(Supplier & { discountPercent: number })[]> {
     const queryBuilder = this.supplierRepository
       .createQueryBuilder('supplier')
       .leftJoinAndSelect('supplier.user', 'user')
@@ -68,7 +68,43 @@ export class SupplierService {
       }
     }
 
-    return queryBuilder.getMany();
+    const suppliers = await queryBuilder.getMany();
+
+    // Add discount percent for each supplier based on buyer's customer group
+    const suppliersWithDiscount = await Promise.all(
+      suppliers.map(async (supplier) => {
+        let discountPercent = 0;
+
+        if (user) {
+          // Find the buyer for the current user
+          const buyer = await this.buyerRepository.findOne({
+            where: { userId: user.id },
+          });
+
+          if (buyer) {
+            // Find the customer group for this buyer and supplier
+            const customerGroup = await this.customerGroupRepository
+              .createQueryBuilder('group')
+              .leftJoin('group.buyers', 'buyer')
+              .where('buyer.id = :buyerId', { buyerId: buyer.id })
+              .andWhere('group.supplierId = :supplierId', { supplierId: supplier.id })
+              .andWhere('group.isActive = :isActive', { isActive: true })
+              .getOne();
+
+            if (customerGroup) {
+              discountPercent = Number(customerGroup.discountPercent);
+            }
+          }
+        }
+
+        return {
+          ...supplier,
+          discountPercent,
+        };
+      })
+    );
+
+    return suppliersWithDiscount;
   }
 
   async findOne(id: string): Promise<Supplier> {

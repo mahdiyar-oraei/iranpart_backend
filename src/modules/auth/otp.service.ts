@@ -13,8 +13,9 @@ export class OtpService {
   ) {}
 
   async generateOtp(phone: string): Promise<string> {
-    // Generate 6-digit OTP
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    // In debug mode, always return 123456
+    const isDebugMode = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'debug';
+    const code = isDebugMode ? '123456' : Math.floor(100000 + Math.random() * 900000).toString();
     
     // Calculate expiration time
     const expirationTime = parseInt(this.configService.get<string>('OTP_EXPIRES_IN'));

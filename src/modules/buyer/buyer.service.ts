@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Buyer, Supplier, Product, SupplierRating } from '../../entities';
+import { Buyer, Supplier, Product, SupplierRating, CustomerGroup } from '../../entities';
 import { PaymentType } from '../../common/enums';
 import { UpdateBuyerDto, RateSupplierDto } from './dto';
 
@@ -16,6 +16,8 @@ export class BuyerService {
     private productRepository: Repository<Product>,
     @InjectRepository(SupplierRating)
     private supplierRatingRepository: Repository<SupplierRating>,
+    @InjectRepository(CustomerGroup)
+    private customerGroupRepository: Repository<CustomerGroup>,
   ) {}
 
   async getMyProfile(userId: string): Promise<Buyer> {
@@ -136,7 +138,7 @@ export class BuyerService {
     return { message: 'Product removed from favorites' };
   }
 
-  async getFavoriteSuppliers(userId: string): Promise<Supplier[]> {
+  async getFavoriteSuppliers(userId: string): Promise<(Supplier & { discountPercent: number })[]> {
     const buyer = await this.buyerRepository.findOne({
       where: { userId },
       relations: ['favoriteSuppliers', 'favoriteSuppliers.ratings'],
@@ -146,7 +148,32 @@ export class BuyerService {
       throw new NotFoundException('Buyer profile not found');
     }
 
-    return buyer.favoriteSuppliers;
+    // Add discount percent for each favorite supplier based on buyer's customer group
+    const suppliersWithDiscount = await Promise.all(
+      buyer.favoriteSuppliers.map(async (supplier) => {
+        let discountPercent = 0;
+
+        // Find the customer group for this buyer and supplier
+        const customerGroup = await this.customerGroupRepository
+          .createQueryBuilder('group')
+          .leftJoin('group.buyers', 'buyer')
+          .where('buyer.id = :buyerId', { buyerId: buyer.id })
+          .andWhere('group.supplierId = :supplierId', { supplierId: supplier.id })
+          .andWhere('group.isActive = :isActive', { isActive: true })
+          .getOne();
+
+        if (customerGroup) {
+          discountPercent = Number(customerGroup.discountPercent);
+        }
+
+        return {
+          ...supplier,
+          discountPercent,
+        };
+      })
+    );
+
+    return suppliersWithDiscount;
   }
 
   async getFavoriteProducts(userId: string): Promise<Product[]> {
@@ -228,7 +255,7 @@ export class BuyerService {
     paymentType?: PaymentType;
     favoritesOnly?: boolean;
     userId?: string;
-  }): Promise<Supplier[]> {
+  }): Promise<(Supplier & { discountPercent: number })[]> {
     const queryBuilder = this.supplierRepository
       .createQueryBuilder('supplier')
       .leftJoinAndSelect('supplier.user', 'user')
@@ -254,6 +281,42 @@ export class BuyerService {
       }
     }
 
-    return queryBuilder.getMany();
+    const suppliers = await queryBuilder.getMany();
+
+    // Add discount percent for each supplier based on buyer's customer group
+    const suppliersWithDiscount = await Promise.all(
+      suppliers.map(async (supplier) => {
+        let discountPercent = 0;
+
+        if (filter.userId) {
+          // Find the buyer for the current user
+          const buyer = await this.buyerRepository.findOne({
+            where: { userId: filter.userId },
+          });
+
+          if (buyer) {
+            // Find the customer group for this buyer and supplier
+            const customerGroup = await this.customerGroupRepository
+              .createQueryBuilder('group')
+              .leftJoin('group.buyers', 'buyer')
+              .where('buyer.id = :buyerId', { buyerId: buyer.id })
+              .andWhere('group.supplierId = :supplierId', { supplierId: supplier.id })
+              .andWhere('group.isActive = :isActive', { isActive: true })
+              .getOne();
+
+            if (customerGroup) {
+              discountPercent = Number(customerGroup.discountPercent);
+            }
+          }
+        }
+
+        return {
+          ...supplier,
+          discountPercent,
+        };
+      })
+    );
+
+    return suppliersWithDiscount;
   }
 }

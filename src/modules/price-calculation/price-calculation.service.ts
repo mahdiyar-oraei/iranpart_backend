@@ -38,7 +38,7 @@ export class PriceCalculationService {
       );
     }
 
-    const basePrice = product.price;
+    const basePrice = Number(product.price);
     const subtotal = basePrice * quantity;
     
     const breakdown: PriceBreakdown = {
@@ -133,7 +133,7 @@ export class PriceCalculationService {
 
     if (customerGroup) {
       return {
-        discount: customerGroup.discountPercent,
+        discount: Number(customerGroup.discountPercent),
         groupName: customerGroup.name,
       };
     }
@@ -153,12 +153,12 @@ export class PriceCalculationService {
 
     if (
       productCategory &&
-      productCategory.discountPercent > 0 &&
+      Number(productCategory.discountPercent) > 0 &&
       productCategory.minimumOrderForDiscount &&
       quantity >= productCategory.minimumOrderForDiscount
     ) {
       return {
-        discount: productCategory.discountPercent,
+        discount: Number(productCategory.discountPercent),
         categoryName: productCategory.category.name,
         minimumOrder: productCategory.minimumOrderForDiscount,
       };
@@ -211,18 +211,18 @@ export class PriceCalculationService {
 
     // Get category discounts
     for (const pc of product.productCategories) {
-      if (pc.discountPercent > 0 && pc.minimumOrderForDiscount) {
+      if (Number(pc.discountPercent) > 0 && pc.minimumOrderForDiscount) {
         availableDiscounts.push({
           type: 'category',
           categoryName: pc.category.name,
-          discountPercent: pc.discountPercent,
+          discountPercent: Number(pc.discountPercent),
           minimumOrder: pc.minimumOrderForDiscount,
         });
       }
     }
 
     return {
-      basePrice: product.price,
+      basePrice: Number(product.price),
       minimumOrderCount: product.minimumOrderCount,
       unit: product.unit,
       availableDiscounts,
